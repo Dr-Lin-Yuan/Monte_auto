@@ -1,0 +1,7 @@
+matplotlib
+numba
+numpy
+optuna
+pandas
+scipy
+streamlit
