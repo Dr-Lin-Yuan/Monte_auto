@@ -329,7 +329,23 @@ def field_weighted_gamma_s(m, x, q_abs, A, v_F_m_s, R_nm):
 # --------------------------------------------------------------------------------------------
 # Hot-carrier channel split
 # --------------------------------------------------------------------------------------------
-def hot_electron_split(E_eV, eps_tab, sigma_abs, omega_p_eV, gamma_b_eV, gamma_s_eV, E_ib_eV):
+def interband_gate(E_eV, E_ib_eV, width_eV=0.1):
+    """Smooth interband onset: logistic s(E) = 1 / (1 + exp(-(E - E_ib)/w)).
+
+    s -> 0 well below E_ib, 0.5 at E_ib, -> 1 above; the 12 %-88 % transition spans E_ib +/- 2w.
+    width_eV <= 0 reproduces the hard step E >= E_ib. Au: X-point onset 1.9 eV rising to the
+    L-point 2.45 eV (Guerrisi, Rosei & Winsemius 1975), so w ~ 0.1 eV is a physically motivated
+    default; Lin's CuPt notebook uses the same form for Cu at 2.10 eV.
+    """
+    E = np.asarray(E_eV, dtype=float)
+    if width_eV <= 0:
+        return (E >= E_ib_eV).astype(float)
+    z = np.clip((E - E_ib_eV) / width_eV, -60.0, 60.0)
+    return 1.0 / (1.0 + np.exp(-z))
+
+
+def hot_electron_split(E_eV, eps_tab, sigma_abs, omega_p_eV, gamma_b_eV, gamma_s_eV, E_ib_eV,
+                       E_ib_width_eV=0.1):
     """Semi-classical damping-channel decomposition of sigma_abs (Govorov-type; NOT ab initio).
 
     All channels share one internal field, so sigma_ch / sigma_abs = Im eps_ch / Im eps_total
@@ -337,7 +353,8 @@ def hot_electron_split(E_eV, eps_tab, sigma_abs, omega_p_eV, gamma_b_eV, gamma_s
       Im eps_ib   = max(0, Im[eps_tab - eps_D(gamma_b)])  (negative values clipped and reported)
       Im eps_D    = Im eps_D(gamma_b + gamma_s), split exactly by Matthiessen weights:
                     bulk intraband = Im eps_D gamma_b/gamma, Landau/surface = Im eps_D gamma_s/gamma
-      interband   = Im eps_ib for hbar omega >= E_ib, residual = Im eps_ib below E_ib
+      interband   = s(E) Im eps_ib, residual = (1 - s(E)) Im eps_ib, with s the logistic gate
+      interband_gate(E, E_ib, E_ib_width) (hard step when E_ib_width <= 0)
       Im eps_total = Im eps_ib + Im eps_D  (equals Im eps_sc where nothing was clipped)
     Weights sum to 1 exactly; Im eps_total <= 0 -> all weights 0.
     Returns sigma_* (nm^2), f_* weights, eta_HE = f_interband + f_Landau, eta_Landau, clip info.
@@ -350,9 +367,9 @@ def hot_electron_split(E_eV, eps_tab, sigma_abs, omega_p_eV, gamma_b_eV, gamma_s
     im_d = np.imag(drude_epsilon(E, omega_p_eV, gamma))
     im_bulk = im_d * gamma_b_eV / gamma
     im_surf = im_d * gamma_s / gamma
-    above = E >= E_ib_eV
-    im_inter = np.where(above, im_ib, 0.0)
-    im_resid = np.where(above, 0.0, im_ib)
+    gate = interband_gate(E, E_ib_eV, E_ib_width_eV)
+    im_inter = gate * im_ib
+    im_resid = (1.0 - gate) * im_ib
     im_tot = im_ib + im_d
     ok = im_tot > 0
     safe = np.where(ok, im_tot, 1.0)
@@ -363,6 +380,7 @@ def hot_electron_split(E_eV, eps_tab, sigma_abs, omega_p_eV, gamma_b_eV, gamma_s
     out.update({f"sigma_{k}": v * sigma_abs for k, v in f.items()})
     out["eta_HE"] = f["interband"] + f["Landau"]
     out["eta_Landau"] = f["Landau"]
+    out["interband_gate"] = gate
     neg = im_ib_raw < 0
     out["clip"] = {"n_clipped": int(np.sum(neg)), "n_total": int(E.size),
                    "min_im_eps_ib": float(np.min(im_ib_raw)),
@@ -375,7 +393,7 @@ def hot_electron_split(E_eV, eps_tab, sigma_abs, omega_p_eV, gamma_b_eV, gamma_s
 # --------------------------------------------------------------------------------------------
 def compute_spectrum(E_tab, eps_tab, lam_nm, D_nm, n_medium, size_correction=True,
                      omega_p_eV=9.066, gamma_b_eV=0.0735, v_F_m_s=1.40e6, A=DEFAULT_A,
-                     E_ib_eV=1.9, field_weighted=False, n_iter=3):
+                     E_ib_eV=1.9, field_weighted=False, n_iter=3, E_ib_width_eV=0.1):
     """Spectrum + channel split on the part of lam_nm covered by the table (no extrapolation).
 
     eps_tab is PCHIP-interpolated in eV, size-corrected (gamma_s = A v_F/R, or the Shahbazyan
@@ -401,7 +419,8 @@ def compute_spectrum(E_tab, eps_tab, lam_nm, D_nm, n_medium, size_correction=Tru
             gamma_s = field_weighted_gamma_s(m, x, q["Q_abs"], A, v_F_m_s, R)
     geo = np.pi * R ** 2
     sigma_abs = q["Q_abs"] * geo
-    split = hot_electron_split(E, eps_t, sigma_abs, omega_p_eV, gamma_b_eV, gamma_s, E_ib_eV)
+    split = hot_electron_split(E, eps_t, sigma_abs, omega_p_eV, gamma_b_eV, gamma_s, E_ib_eV,
+                               E_ib_width_eV=E_ib_width_eV)
     out = {"lam_nm": lam, "E_eV": E, "n_dropped": int(np.sum(~mask)), "R_nm": R, "x": x, "m": m,
            "eps_tab": eps_t, "eps_sc": eps_sc, "gamma_s_eV": gamma_s, "n_medium": float(n_medium),
            "Q_ext": q["Q_ext"], "Q_sca": q["Q_sca"], "Q_abs": q["Q_abs"],

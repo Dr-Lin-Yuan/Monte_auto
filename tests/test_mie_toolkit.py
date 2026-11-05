@@ -148,7 +148,31 @@ def test_channel_weights_sum_to_one_and_bounded():
 def test_interband_gating_ag_lspr_is_residual():
     s = _spec("Ag", 20, np.arange(300, 901, 1.0))
     i = mt.peak_index(s["Q_abs"])
-    assert s["E_eV"][i] < 3.9 and s["f_interband"][i] == 0 and s["f_residual"][i] > 0
+    # Ag LSPR (~3.1 eV) sits > 7 widths below E_ib = 3.9 eV: gate ~ 3e-4, so interband is negligible
+    assert s["E_eV"][i] < 3.9 and s["f_interband"][i] < 1e-2 * s["f_residual"][i] and s["f_residual"][i] > 0
+
+
+def test_interband_gate_shape_and_hard_step_limit():
+    E = np.linspace(1.0, 3.0, 2001)
+    g = mt.interband_gate(E, 1.9, 0.1)
+    assert np.all(np.diff(g) > 0) and abs(mt.interband_gate(1.9, 1.9, 0.1) - 0.5) < 1e-12
+    assert abs(mt.interband_gate(1.7, 1.9, 0.1) - 0.1192) < 1e-3 and abs(mt.interband_gate(2.1, 1.9, 0.1) - 0.8808) < 1e-3
+    assert np.array_equal(mt.interband_gate(E, 1.9, 0.0), (E >= 1.9).astype(float))
+    # soft and hard gates give identical channel sums; weights still sum to 1
+    E_t, eps = _jc("Au")
+    d = mt.DRUDE_DEFAULTS["Au"]
+    lam = np.arange(300, 901, 1.0)
+    soft = mt.compute_spectrum(E_t, eps, lam, 50, N_WATER, True, d["omega_p_eV"], d["gamma_b_eV"],
+                               d["v_F_m_s"], 0.75, d["E_ib_eV"], E_ib_width_eV=0.1)
+    hard = mt.compute_spectrum(E_t, eps, lam, 50, N_WATER, True, d["omega_p_eV"], d["gamma_b_eV"],
+                               d["v_F_m_s"], 0.75, d["E_ib_eV"], E_ib_width_eV=0.0)
+    for s in (soft, hard):
+        tot = s["f_interband"] + s["f_Landau"] + s["f_bulk"] + s["f_residual"]
+        assert np.allclose(tot[s["sigma_abs"] > 0], 1.0)
+    assert np.allclose(soft["f_interband"] + soft["f_residual"], hard["f_interband"] + hard["f_residual"])
+    # hard gate has a jump at E_ib, soft gate does not
+    jump = lambda s: np.max(np.abs(np.diff(s["f_residual"])))
+    assert jump(hard) > 0.05 and jump(soft) < 0.01
 
 
 def test_govorov_landau_fraction_cross_check():

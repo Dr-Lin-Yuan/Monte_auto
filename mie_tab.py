@@ -171,9 +171,11 @@ def _load(source, fmt):
 
 
 @st.cache_data(show_spinner=False)
-def _spectrum(E_tab, eps_tab, lam_min, lam_max, step, D, n_m, size_corr, wp, gb, vF, A, E_ib, fw):
+def _spectrum(E_tab, eps_tab, lam_min, lam_max, step, D, n_m, size_corr, wp, gb, vF, A, E_ib, fw,
+              E_ib_w=0.1):
     lam = np.arange(lam_min, lam_max + 0.5 * step, step)
-    return mt.compute_spectrum(E_tab, eps_tab, lam, D, n_m, size_corr, wp, gb, vF, A, E_ib, fw)
+    return mt.compute_spectrum(E_tab, eps_tab, lam, D, n_m, size_corr, wp, gb, vF, A, E_ib, fw,
+                               E_ib_width_eV=E_ib_w)
 
 
 @st.cache_data(show_spinner=False)
@@ -250,7 +252,12 @@ def render():
                           help="3/4 = Kawabata-Kubo / Govorov; 6/pi^2 = Brown 2016; ~0.32 TDLDA (Lerme)")
             E_ib = st.number_input("Interband threshold E_ib (eV)", min_value=0.0,
                                    value=float(dflt["E_ib_eV"]), format="%.2f", key=f"mie_eib_{k}",
-                                   help="Im eps_ib below E_ib is reported as sub-threshold residual")
+                                   help="Centre of the logistic interband gate; Im eps_ib below it is "
+                                        "reported as sub-threshold residual")
+            E_ib_w = st.number_input("Interband onset width w (eV)", min_value=0.0, max_value=1.0,
+                                     value=0.10, step=0.01, format="%.2f", key="mie_eib_w",
+                                     help="Logistic gate s = 1/(1+exp(-(E-E_ib)/w)); 12-88 % over E_ib +/- 2w. "
+                                          "0 = hard step")
             fw = st.checkbox("Field-weighted gamma_s (Shahbazyan 2016)", value=False, key="mie_fw",
                              help="gamma_s = A v_F int_S|E_n|^2 dS / int_V|E|^2 dV, 3 fixed-point steps")
         vF = vF6 * 1e6
@@ -275,7 +282,7 @@ def render():
         try:
             spec = _spectrum(E_tab, eps_tab, float(lam_min), float(lam_max), float(step), float(D),
                              float(n_m), bool(size_corr), float(wp), float(gb), float(vF), float(A),
-                             float(E_ib), bool(fw))
+                             float(E_ib), bool(fw), float(E_ib_w))
         except Exception as exc:  # noqa: BLE001
             st.error(f"Spectrum failed: {exc}")
             return
@@ -313,6 +320,6 @@ def render():
                                  log_scale, f"|E|/|E0| at {lam_nf:.1f} nm, plane {plane}, n_max {nf['n_max']}"))
         meta = [f"material={name}", f"D_nm={D}", f"n_medium={n_m}", f"size_correction={size_corr}",
                 f"omega_p_eV={wp}", f"gamma_b_eV={gb}", f"v_F_m_s={vF}", f"A={A}", f"E_ib_eV={E_ib}",
-                f"field_weighted_gamma_s={fw}"]
+                f"E_ib_width_eV={E_ib_w}", f"field_weighted_gamma_s={fw}"]
         st.download_button("Download spectrum CSV", spectrum_csv(spec, meta),
                            file_name=f"mie_{Path(name).stem}_D{D:g}nm.csv", mime="text/csv", key="mie_csv")
