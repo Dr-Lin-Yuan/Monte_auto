@@ -72,6 +72,7 @@ def legacy_loss(sim_wl, sim_fr_norm, exp_wl, exp_fr):
     3. FWHM error
     4. valley depth error
     5. valley position error
+    6. baseline (700-750 nm tail-band mean) error
     """
     sim_wl, sim_fr_norm, exp_interp_norm = interpolate_and_normalize(
         sim_wl, sim_fr_norm, exp_wl, exp_fr
@@ -126,11 +127,31 @@ def legacy_loss(sim_wl, sim_fr_norm, exp_wl, exp_fr):
         valley_depth_loss = 0.0
         valley_pos_loss = 0.0
 
+    # Baseline (tail-band) loss: penalize the F(R) offset at 700-750 nm where the
+    # Cu SPR is negligible; this offset is under-penalized by shape_mse alone.
+    # Pseudo-Huber form caps extreme divergence:
+    #   ~(delta/scale)^2 for small errors, ~|delta|/scale for large errors.
+    # scale = 0.20: a 0.20 tail mismatch gives loss ~0.5, a 0.50 mismatch ~1.79.
+    baseline_mask = (sim_wl >= 700.0) & (sim_wl <= 750.0)
+    if np.any(baseline_mask):
+        sim_tail = float(np.mean(sim_fr_norm[baseline_mask]))
+        exp_tail = float(np.mean(exp_interp_norm[baseline_mask]))
+        delta_tail = sim_tail - exp_tail
+        baseline_scale = 0.20
+        baseline_loss = (delta_tail / baseline_scale) ** 2 / (
+            1.0 + abs(delta_tail) / baseline_scale
+        )
+    else:
+        sim_tail = np.nan
+        exp_tail = np.nan
+        baseline_loss = 0.0
+
     w_shape = 1.0
     w_peak = 1.0
     w_fwhm = 0.7
     w_valley_depth = 1.2
     w_valley_pos = 0.8
+    w_baseline = 0.8
 
     total_loss = (
         w_shape * shape_mse
@@ -138,6 +159,7 @@ def legacy_loss(sim_wl, sim_fr_norm, exp_wl, exp_fr):
         + w_fwhm * fwhm_loss
         + w_valley_depth * valley_depth_loss
         + w_valley_pos * valley_pos_loss
+        + w_baseline * baseline_loss
     )
 
     details = {
@@ -146,6 +168,7 @@ def legacy_loss(sim_wl, sim_fr_norm, exp_wl, exp_fr):
         "fwhm_loss": float(fwhm_loss),
         "valley_depth_loss": float(valley_depth_loss),
         "valley_pos_loss": float(valley_pos_loss),
+        "baseline_loss": float(baseline_loss),
         "sim_peak_wl": float(sim_peak_wl),
         "exp_peak_wl": float(exp_peak_wl),
         "sim_fwhm": float(sim_fwhm),
@@ -158,6 +181,8 @@ def legacy_loss(sim_wl, sim_fr_norm, exp_wl, exp_fr):
         "exp_valley_wl": float(exp_valley_wl) if not np.isnan(exp_valley_wl) else None,
         "sim_valley_y": float(sim_valley_y) if not np.isnan(sim_valley_y) else None,
         "exp_valley_y": float(exp_valley_y) if not np.isnan(exp_valley_y) else None,
+        "sim_tail_mean": float(sim_tail) if not np.isnan(sim_tail) else None,
+        "exp_tail_mean": float(exp_tail) if not np.isnan(exp_tail) else None,
     }
 
     return total_loss, exp_interp_norm, details
@@ -404,7 +429,8 @@ def build_objective(base_params, exp_wl, exp_fr, log_root):
                 f"peak={details['peak_loss']:.6f}, "
                 f"fwhm={details['fwhm_loss']:.6f}, "
                 f"valley_depth={details['valley_depth_loss']:.6f}, "
-                f"valley_pos={details['valley_pos_loss']:.6f}",
+                f"valley_pos={details['valley_pos_loss']:.6f}, "
+                f"baseline={details['baseline_loss']:.6f}",
                 flush=True
             )
             print(
@@ -421,6 +447,14 @@ def build_objective(base_params, exp_wl, exp_fr, log_root):
                     f"[Trial {trial.number}] "
                     f"sim_valley={details['sim_valley_wl']:.2f} nm @ {details['sim_valley_y']:.4f}, "
                     f"exp_valley={details['exp_valley_wl']:.2f} nm @ {details['exp_valley_y']:.4f}",
+                    flush=True
+                )
+
+            if details["sim_tail_mean"] is not None and details["exp_tail_mean"] is not None:
+                print(
+                    f"[Trial {trial.number}] "
+                    f"sim_tail_700_750={details['sim_tail_mean']:.4f}, "
+                    f"exp_tail_700_750={details['exp_tail_mean']:.4f}",
                     flush=True
                 )
 

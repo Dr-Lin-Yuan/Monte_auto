@@ -225,6 +225,11 @@ def select_wavelength_grid(lambdas_nm_full, arrays, params):
 
 
 def mie_ab(m, x, n_max):
+    """Scalar reference Mie coefficients a_n, b_n (Bohren & Huffman convention).
+
+    Kept as a readable reference implementation; production code uses the
+    vectorized kernel ``_mie_qsca_qext``. Used by the unit tests.
+    """
     ns = np.arange(1, n_max + 1)
 
     jn_x = spherical_jn(ns, x)
@@ -252,6 +257,140 @@ def mie_ab(m, x, n_max):
     return an, bn
 
 
+def _wiscombe_n_max(x):
+    """Wiscombe (1980) series truncation order for size parameter(s) x."""
+    x = np.asarray(x, dtype=np.float64)
+    return np.ceil(2.0 + x + 4.05 * x ** (1.0 / 3.0)).astype(np.int64)
+
+
+def _mie_qsca_qext(x, m_rel):
+    """Vectorized Mie scattering / extinction efficiencies for homogeneous spheres.
+
+    Parameters
+    ----------
+    x : array_like, real
+        Size parameter k_medium * r (any shape).
+    m_rel : array_like, complex
+        Relative refractive index n_particle / n_medium, broadcastable to x.
+
+    Returns
+    -------
+    qsca, qext : ndarray (float64), same shape as broadcast(x, m_rel)
+        Q = (2 / x^2) * sum_n (2n + 1) * (|a_n|^2 + |b_n|^2)   (scattering)
+        Q = (2 / x^2) * sum_n (2n + 1) * Re(a_n + b_n)         (extinction)
+
+    Implementation
+    --------------
+    Instead of looping over every (particle, wavelength) pair, we loop once over
+    the Mie order n and evaluate scipy.special.spherical_jn / spherical_yn on
+    whole arrays (spherical_jn accepts the complex argument m*x). The loop runs
+    up to the Wiscombe order of the global maximum x; each element only
+    accumulates orders n <= its own Wiscombe n_max, which reproduces the scalar
+    per-pair truncation exactly and avoids spherical_yn overflow at small x and
+    high order.
+    """
+    x, m_rel = np.broadcast_arrays(
+        np.asarray(x, dtype=np.float64),
+        np.asarray(m_rel, dtype=np.complex128),
+    )
+    out_shape = x.shape
+    x_flat = np.ascontiguousarray(x).ravel()
+    m_flat = np.ascontiguousarray(m_rel).ravel()
+    if not np.all(np.isfinite(x_flat)) or np.any(x_flat < 0.0):
+        raise ValueError("Mie size parameter x must be finite and non-negative")
+    if not np.all(np.isfinite(m_flat)):
+        raise ValueError("Mie relative refractive index must be finite")
+
+    qsca_acc = np.zeros(x_flat.size, dtype=np.float64)
+    qext_acc = np.zeros(x_flat.size, dtype=np.float64)
+
+    positive = x_flat > 0.0
+    n_max_elem = np.zeros(x_flat.size, dtype=np.int64)
+    n_max_elem[positive] = _wiscombe_n_max(x_flat[positive])
+    n_max_global = int(n_max_elem.max()) if x_flat.size else 0
+
+    for n in range(1, n_max_global + 1):
+        idx = np.nonzero(n_max_elem >= n)[0]
+        xa = x_flat[idx]
+        ma = m_flat[idx]
+        mxa = ma * xa
+
+        # Riccati-Bessel ingredients on the real argument x
+        jn_x = spherical_jn(n, xa)
+        jn_1_x = spherical_jn(n - 1, xa)
+        yn_x = spherical_yn(n, xa)
+        yn_1_x = spherical_yn(n - 1, xa)
+        hn_x = jn_x + 1j * yn_x
+        hn_1_x = jn_1_x + 1j * yn_1_x
+
+        # ... and on the complex argument m*x
+        jn_mx = spherical_jn(n, mxa)
+        jn_1_mx = spherical_jn(n - 1, mxa)
+
+        xjn_diff = xa * jn_1_x - n * jn_x
+        mxjn_diff = mxa * jn_1_mx - n * jn_mx
+        xhn_diff = xa * hn_1_x - n * hn_x
+
+        m2 = ma**2
+        an = (m2 * jn_mx * xjn_diff - jn_x * mxjn_diff) / (
+            m2 * jn_mx * xhn_diff - hn_x * mxjn_diff
+        )
+        bn = (jn_mx * xjn_diff - jn_x * mxjn_diff) / (
+            jn_mx * xhn_diff - hn_x * mxjn_diff
+        )
+
+        weight = float(2 * n + 1)
+        qsca_acc[idx] += weight * (np.abs(an) ** 2 + np.abs(bn) ** 2)
+        qext_acc[idx] += weight * np.real(an + bn)
+
+    safe_x2 = np.where(positive, x_flat**2, 1.0)
+    qsca = np.where(positive, (2.0 / safe_x2) * qsca_acc, 0.0)
+    qext = np.where(positive, (2.0 / safe_x2) * qext_acc, 0.0)
+    return qsca.reshape(out_shape), qext.reshape(out_shape)
+
+
+def mie_sphere_efficiencies(d_nm, wl_nm, m_particle_complex, n_medium):
+    """Exact Mie efficiencies of a homogeneous sphere embedded in a real medium.
+
+    Parameters
+    ----------
+    d_nm : float or array_like
+        Sphere diameter in nm (broadcastable against wl_nm).
+    wl_nm : array_like
+        Vacuum wavelength(s) in nm.
+    m_particle_complex : complex or array_like
+        Complex refractive index n + i k of the particle (k >= 0 absorbs),
+        broadcastable against wl_nm.
+    n_medium : float
+        Real refractive index of the embedding medium.
+
+    Returns
+    -------
+    qsca, qabs, qext : ndarray (float64)
+        Scattering, absorption and extinction efficiencies (cross section divided
+        by the geometric cross section pi r^2). qsca and qabs are clipped at 0
+        and qext = qsca + qabs.
+    """
+    n_medium = float(n_medium)
+    if not np.isfinite(n_medium) or n_medium <= 0.0:
+        raise ValueError("n_medium must be positive")
+    wl_nm = np.asarray(wl_nm, dtype=np.float64)
+    d_nm = np.asarray(d_nm, dtype=np.float64)
+    if np.any(wl_nm <= 0.0):
+        raise ValueError("wavelengths must be positive")
+    if np.any(d_nm < 0.0):
+        raise ValueError("diameter must be non-negative")
+
+    x = np.pi * d_nm * n_medium / wl_nm
+    m_rel = np.asarray(m_particle_complex, dtype=np.complex128) / n_medium
+    qsca_raw, qext_raw = _mie_qsca_qext(x, m_rel)
+
+    qsca = np.clip(qsca_raw, 0.0, None)
+    qabs = np.clip(qext_raw - qsca, 0.0, None)
+    qext = qsca + qabs
+    return qsca, qabs, qext
+
+
 def compute_cu_mie_cross_sections(
     diameters_nm,
     file_eps,
@@ -260,8 +399,13 @@ def compute_cu_mie_cross_sections(
     lambda_max=800.0,
     lambda_step=1.0,
 ):
+    """Cu Mie cross sections (nm^2) on a (N_particles, N_lambda) grid.
+
+    Vectorized: one Python loop over Mie order n through ``_mie_qsca_qext``
+    instead of a double loop over (particle, wavelength) pairs.
+    """
     lambdas_nm = np.arange(lambda_min, lambda_max + lambda_step, lambda_step, dtype=np.float64)
-    r_nm = np.asarray(diameters_nm, dtype=np.float64) / 2.0
+    r_nm = np.asarray(diameters_nm, dtype=np.float64).ravel() / 2.0
 
     df_eps = load_dielectric_function(file_eps)
     eps1 = np.interp(lambdas_nm, df_eps["lambda_nm"], df_eps["eps1"])
@@ -271,27 +415,15 @@ def compute_cu_mie_cross_sections(
     m_rel = n_particle / n_medium
 
     k_medium = 2.0 * np.pi * n_medium / lambdas_nm
-    n_part = r_nm.size
-    n_lambda = lambdas_nm.size
 
-    cext = np.zeros((n_part, n_lambda), dtype=np.float64)
-    csca = np.zeros_like(cext)
+    # (N_part, N_lam) size parameters and relative indices
+    x_mat = r_nm[:, None] * k_medium[None, :]
+    m_mat = np.broadcast_to(m_rel[None, :], x_mat.shape)
+    qsca, qext = _mie_qsca_qext(x_mat, m_mat)
 
-    for j, _ in enumerate(lambdas_nm):
-        m = m_rel[j]
-        k_j = k_medium[j]
-        x_all = k_j * r_nm
-        n_max_all = np.ceil(2 + x_all + 4.05 * x_all ** (1 / 3)).astype(int)
-
-        for i, (x, n_max) in enumerate(zip(x_all, n_max_all)):
-            an, bn = mie_ab(m, x, n_max)
-            ns = np.arange(1, n_max + 1)
-
-            sca_sum = np.sum((2 * ns + 1) * (np.abs(an) ** 2 + np.abs(bn) ** 2))
-            ext_sum = np.sum((2 * ns + 1) * np.real(an + bn))
-
-            csca[i, j] = (2 * np.pi / k_j ** 2) * sca_sum
-            cext[i, j] = (2 * np.pi / k_j ** 2) * ext_sum
+    geo_nm2 = (np.pi * r_nm**2)[:, None]
+    csca = qsca * geo_nm2
+    cext = qext * geo_nm2
 
     cext, csca, cabs = sanitize_cross_sections(cext, csca, "Cu")
     return lambdas_nm, cext, csca, cabs
@@ -323,6 +455,14 @@ def support_efficiencies(
     transition_center=0.5,
     transition_width=0.08,
 ):
+    """DEPRECATED - not called anywhere; kept only for comparison with old runs.
+
+    Rayleigh / geometric-optics sigmoid blend for support efficiencies. It is
+    physically wrong above x ~ 0.5: the "geometric" branch uses
+    qsca_geo_scale * (1 - 0.05 / x), i.e. the Q_ext -> 2 large-particle limit,
+    as Q_sca, and the sigmoid only hides the kink of the former hard switch.
+    Use ``mie_sphere_efficiencies`` (exact Mie) instead.
+    """
     wl_nm = np.asarray(wl_nm, dtype=np.float64)
     n_medium = float(n_medium)
     if n_medium <= 0:
@@ -347,19 +487,20 @@ def support_efficiencies(
 
 
 def mie_ceo2_approx(d_nm, wl_nm, uv_cut_nm, uv_amp, uv_decay_nm, vis_peak_nm, vis_width_nm, vis_k0, n_medium=1.75):
+    """CeO2 support sphere cross sections (m^2) from exact Mie theory.
+
+    The name is kept for backward compatibility; despite "approx" this is now
+    full Mie (``mie_sphere_efficiencies``) with the n_ceo2_model / k_ceo2_model
+    refractive index, relative to n_medium. The former Rayleigh/geometric blend
+    (``support_efficiencies``) is deprecated.
+
+    Returns (csca_m2, cabs_m2).
+    """
     wl_nm = np.asarray(wl_nm, dtype=np.float64)
     n = n_ceo2_model(wl_nm)
     k = k_ceo2_model(wl_nm, uv_cut_nm, uv_amp, uv_decay_nm, vis_peak_nm, vis_width_nm, vis_k0)
     m = n + 1j * k
-    qsca, qabs = support_efficiencies(
-        d_nm,
-        wl_nm,
-        m,
-        n_medium,
-        qsca_geo_scale=2.0,
-        qabs_geo_offset=0.05,
-        qabs_k_scale=2.5,
-    )
+    qsca, qabs, _ = mie_sphere_efficiencies(d_nm, wl_nm, m, n_medium)
 
     sigma_geo = np.pi * (d_nm * 1e-9 / 2.0) ** 2
     csca_m2 = sigma_geo * qsca
@@ -407,6 +548,14 @@ def mie_tio2_approx(
     tio2_vis_width_nm=150.0,
     tio2_vis_k0=5e-3,
 ):
+    """N-doped TiO2 support sphere cross sections (m^2) from exact Mie theory.
+
+    The name is kept for backward compatibility; this is now full Mie
+    (``mie_sphere_efficiencies``) with the rutile DeVore n and the parametric
+    doped-TiO2 k model, relative to n_medium.
+
+    Returns (csca_m2, cabs_m2, cext_m2).
+    """
     wl_nm = np.asarray(wl_nm, dtype=np.float64)
     n = n_rutile_devore(wl_nm)
     k = k_tio2_doped_model(
@@ -419,15 +568,7 @@ def mie_tio2_approx(
     )
     m = n + 1j * k
 
-    qsca, qabs = support_efficiencies(
-        d_nm,
-        wl_nm,
-        m,
-        n_medium,
-        qsca_geo_scale=2.2,
-        qabs_geo_offset=0.1,
-        qabs_k_scale=3.0,
-    )
+    qsca, qabs, _ = mie_sphere_efficiencies(d_nm, wl_nm, m, n_medium)
 
     sigma_geo = np.pi * (d_nm * 1e-9 / 2.0) ** 2
     csca_m2 = sigma_geo * qsca

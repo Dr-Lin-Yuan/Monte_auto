@@ -80,7 +80,9 @@ def dielectric_options(directory="dielectric_permittivity"):
     root = Path(directory)
     if not root.exists():
         return []
-    return sorted(path for path in root.iterdir() if path.is_file())
+    # *_nk.txt files (lambda, n, k) belong to the Mie toolkit tab; the Monte Carlo loader
+    # expects E_eV eps1 eps2, so they are not offered here.
+    return sorted(path for path in root.iterdir() if path.is_file() and not path.name.endswith("_nk.txt"))
 
 
 def build_app_params(
