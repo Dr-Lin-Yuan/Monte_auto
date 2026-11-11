@@ -381,8 +381,9 @@ Monte Carlo random walk to separate absorption from multiple scattering, and spl
 absorbed power into hot-carrier generation channels — were learned from the
 **Nordlander and Halas groups at Rice University**, and from the papers below.
 
-Besides my two advisors, Prof. Peter Nordlander and Prof. Naomi J. Halas, I learned most
-of this as a graduate student from Dr. Minhan Lou, Dr. Ming Zhang, Dr. Jingyi Zhou,
+Besides my PhD advisor, Prof. Naomi J. Halas, and Prof. Peter Nordlander — who served on
+my thesis committee, was a corresponding author on my papers, and taught me a great deal
+as a mentor — I learned most of this as a graduate student from Dr. Minhan Lou, Dr. Ming Zhang, Dr. Jingyi Zhou,
 Dr. Yage Zhao and Anvy Kuriakose (Nordlander group alumni), and from my senior labmates
 Dr. Linan Zhou and Dr. Chao Zhang (Halas group alumni, as am I). Thank you.
 
@@ -405,3 +406,8 @@ please validate the results against your own data before relying on them.
    multiplication in plasmonic photocatalysis", *Proc. Natl. Acad. Sci. U.S.A.* **118**,
    e2022109118 (2021).
    [doi:10.1073/pnas.2022109118](https://doi.org/10.1073/pnas.2022109118)
+4. Y. Yuan, L. Zhou, H. Robatjazi, J. L. Bao, J. Zhou, A. Bayles, L. Yuan, M. Lou, M. Lou,
+   S. Khatiwada, E. A. Carter, P. Nordlander, N. J. Halas, "Earth-abundant photocatalyst
+   for H<sub>2</sub> generation from NH<sub>3</sub> with light-emitting diode
+   illumination", *Science* **378**, 889–893 (2022).
+   [doi:10.1126/science.abn5636](https://doi.org/10.1126/science.abn5636)
