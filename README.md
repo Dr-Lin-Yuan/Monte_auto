@@ -410,3 +410,7 @@ please validate the results against your own data before relying on them.
    for H<sub>2</sub> generation from NH<sub>3</sub> with light-emitting diode
    illumination", *Science* **378**, 889–893 (2022).
    [doi:10.1126/science.abn5636](https://doi.org/10.1126/science.abn5636)
+5. S. Lee, L. Yuan, E. Begin, D. Yang, C. Lim, Y. A. Zhang, L. Ma, C. Ophus, Y. Cui,
+   J. L. Bao, J. A. Dionne, "Plasmonic Photocatalysis Enables Selective Oxidative Coupling
+   of Methane with Nitrous Oxide under Ambient Conditions", arXiv:2604.18417 (2026).
+   [arXiv:2604.18417](https://arxiv.org/abs/2604.18417)
