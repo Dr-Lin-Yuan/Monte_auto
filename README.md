@@ -23,7 +23,7 @@ Streamlit app with two tabs:
 Notation: vacuum wavelength $`\lambda`$, photon energy $`E = hc/\lambda`$ with
 $`hc = 1239.84193\ \text{eV nm}`$, sphere diameter $`D = 2R`$, real host index $`n_m`$,
 time dependence $`e^{-i\omega t}`$ (Bohren & Huffman 1983, "BH"), so absorbing materials
-have $`\operatorname{Im}\varepsilon \ge 0`$.
+have $`\mathrm{Im}\,\varepsilon \ge 0`$.
 
 ### 1. Mie theory for one sphere (both tabs)
 
@@ -47,7 +47,7 @@ with the Riccati–Bessel functions $`\psi_n(z) = z\,j_n(z)`$ and
 $`\xi_n(z) = z\,h_n^{(1)}(z)`$. Efficiencies (BH eqs. 4.61–4.62):
 
 ```math
-Q_\text{ext} = \frac{2}{x^2}\sum_{n=1}^{n_\max}(2n+1)\,\operatorname{Re}(a_n + b_n), \qquad
+Q_\text{ext} = \frac{2}{x^2}\sum_{n=1}^{n_\max}(2n+1)\,\mathrm{Re}\,(a_n + b_n), \qquad
 Q_\text{sca} = \frac{2}{x^2}\sum_{n=1}^{n_\max}(2n+1)\left(\lvert a_n\rvert^2 + \lvert b_n\rvert^2\right), \qquad
 Q_\text{abs} = Q_\text{ext} - Q_\text{sca}
 ```
@@ -273,11 +273,11 @@ sphere volume.
 
 **3.2 Damping-channel split of the absorption.** All channels are driven by the same
 internal field, so each takes the share of $`\sigma_\text{abs}`$ given by its share of
-$`\operatorname{Im}\varepsilon`$:
+$`\mathrm{Im}\,\varepsilon`$:
 
 ```math
-\operatorname{Im}\varepsilon_\text{ib} = \max\!\left\{0,\ \operatorname{Im}\!\left[\varepsilon_\text{tab} - \varepsilon_D(\gamma_b)\right]\right\}, \qquad
-\operatorname{Im}\varepsilon_\text{tot} = \operatorname{Im}\varepsilon_\text{ib} + \operatorname{Im}\varepsilon_D(\gamma)
+\mathrm{Im}\,\varepsilon_\text{ib} = \max\!\left\{0,\ \mathrm{Im}\left[\varepsilon_\text{tab} - \varepsilon_D(\gamma_b)\right]\right\}, \qquad
+\mathrm{Im}\,\varepsilon_\text{tot} = \mathrm{Im}\,\varepsilon_\text{ib} + \mathrm{Im}\,\varepsilon_D(\gamma)
 ```
 
 ```math
@@ -285,10 +285,10 @@ s(E) = \frac{1}{1 + \exp\!\left[-(E - E_\text{ib})/w\right]}
 ```
 
 ```math
-f_\text{interband} = \frac{s\,\operatorname{Im}\varepsilon_\text{ib}}{\operatorname{Im}\varepsilon_\text{tot}}, \quad
-f_\text{Landau} = \frac{\gamma_s}{\gamma}\,\frac{\operatorname{Im}\varepsilon_D(\gamma)}{\operatorname{Im}\varepsilon_\text{tot}}, \quad
-f_\text{bulk} = \frac{\gamma_b}{\gamma}\,\frac{\operatorname{Im}\varepsilon_D(\gamma)}{\operatorname{Im}\varepsilon_\text{tot}}, \quad
-f_\text{residual} = \frac{(1-s)\,\operatorname{Im}\varepsilon_\text{ib}}{\operatorname{Im}\varepsilon_\text{tot}}
+f_\text{interband} = \frac{s\,\mathrm{Im}\,\varepsilon_\text{ib}}{\mathrm{Im}\,\varepsilon_\text{tot}}, \quad
+f_\text{Landau} = \frac{\gamma_s}{\gamma}\,\frac{\mathrm{Im}\,\varepsilon_D(\gamma)}{\mathrm{Im}\,\varepsilon_\text{tot}}, \quad
+f_\text{bulk} = \frac{\gamma_b}{\gamma}\,\frac{\mathrm{Im}\,\varepsilon_D(\gamma)}{\mathrm{Im}\,\varepsilon_\text{tot}}, \quad
+f_\text{residual} = \frac{(1-s)\,\mathrm{Im}\,\varepsilon_\text{ib}}{\mathrm{Im}\,\varepsilon_\text{tot}}
 ```
 
 ```math
@@ -298,7 +298,7 @@ f_\text{residual} = \frac{(1-s)\,\operatorname{Im}\varepsilon_\text{ib}}{\operat
 
 | Symbol | Meaning |
 |---|---|
-| $`\operatorname{Im}\varepsilon_\text{ib}`$ | non-Drude (bound-electron) part of the tabulated loss |
+| $`\mathrm{Im}\,\varepsilon_\text{ib}`$ | non-Drude (bound-electron) part of the tabulated loss |
 | $`s(E)`$ | logistic interband onset gate: 0 well below $`E_\text{ib}`$, ½ at $`E_\text{ib}`$, 1 above |
 | $`E_\text{ib},\ w`$ | interband threshold and gate width (default 0.1 eV; $`w \le 0`$ gives a hard step) |
 | $`f_\text{interband}`$ | d → sp interband transitions (hot holes in the d band) |
