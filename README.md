@@ -382,8 +382,8 @@ absorbed power into hot-carrier generation channels — were learned from the
 **Nordlander and Halas groups at Rice University**, and from the papers below.
 
 Besides my two advisors, Prof. Peter Nordlander and Prof. Naomi J. Halas, I learned most
-of this as a graduate student from my senior labmates: Dr. Minhan Lou, Dr. Ming Zhang,
-Dr. Jingyi Zhou, Dr. Yage Zhao and Anvy Kuriakose (Nordlander group alumni), and
+of this as a graduate student from Dr. Minhan Lou, Dr. Ming Zhang, Dr. Jingyi Zhou,
+Dr. Yage Zhao and Anvy Kuriakose (Nordlander group alumni), and from my senior labmates
 Dr. Linan Zhou and Dr. Chao Zhang (Halas group alumni, as am I). Thank you.
 
 **Disclaimer.** This repository is an independent re-implementation written for my own
