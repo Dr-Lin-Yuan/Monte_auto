@@ -372,3 +372,27 @@ Johnson & Christy 1972/1974 Au, Ag, Cu, Pd (`*_nk.txt`) ship with the repo; the
 | `mie_tab.py` | Mie tab UI and figure builders |
 | `run_fit.py`, `inspect_best.py` | CLI fitting and inspection |
 | `*_v1.py`, `sim_core_cpu.py` | legacy references |
+
+## Acknowledgement and references
+
+The modelling ideas used here — treating a plasmonic photocatalyst powder as an ensemble
+of Mie absorbers/scatterers on an oxide support, following photons through the bed with a
+Monte Carlo random walk to separate absorption from multiple scattering, and splitting the
+absorbed power into hot-carrier generation channels — were learned from the
+**Nordlander group at Rice University** (Prof. Peter Nordlander), and from the papers
+below. This repository is an independent re-implementation written for my own fitting
+work; any errors are mine.
+
+1. L. Zhou, D. F. Swearer, C. Zhang, H. Robatjazi, H. Zhao, L. Henderson, L. Dong,
+   P. Christopher, E. A. Carter, P. Nordlander, N. J. Halas, "Quantifying hot carrier and
+   thermal contributions in plasmonic photocatalysis", *Science* **362**, 69–72 (2018).
+   [doi:10.1126/science.aat6967](https://doi.org/10.1126/science.aat6967)
+2. L. Yuan, M. Lou, B. D. Clark, M. Lou, L. Zhou, S. Tian, C. R. Jacobson, P. Nordlander,
+   N. J. Halas, "Morphology-Dependent Reactivity of a Plasmonic Photocatalyst",
+   *ACS Nano* **14**, 12054–12063 (2020).
+   [doi:10.1021/acsnano.0c05383](https://doi.org/10.1021/acsnano.0c05383)
+3. L. Zhou, M. Lou, J. L. Bao, C. Zhang, J. G. Liu, J. M. P. Martirez, S. Tian, L. Yuan,
+   D. F. Swearer, H. Robatjazi, E. A. Carter, P. Nordlander, N. J. Halas, "Hot carrier
+   multiplication in plasmonic photocatalysis", *Proc. Natl. Acad. Sci. U.S.A.* **118**,
+   e2022109118 (2021).
+   [doi:10.1073/pnas.2022109118](https://doi.org/10.1073/pnas.2022109118)
