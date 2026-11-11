@@ -379,9 +379,18 @@ The modelling ideas used here — treating a plasmonic photocatalyst powder as a
 of Mie absorbers/scatterers on an oxide support, following photons through the bed with a
 Monte Carlo random walk to separate absorption from multiple scattering, and splitting the
 absorbed power into hot-carrier generation channels — were learned from the
-**Nordlander group at Rice University** (Prof. Peter Nordlander), and from the papers
-below. This repository is an independent re-implementation written for my own fitting
-work; any errors are mine.
+**Nordlander and Halas groups at Rice University**, and from the papers below.
+
+Besides my two advisors, Prof. Peter Nordlander and Prof. Naomi J. Halas, I learned most
+of this as a graduate student from my senior labmates: Dr. Minhan Lou, Dr. Ming Zhang,
+Dr. Jingyi Zhou, Dr. Yage Zhao and Anvy Kuriakose (Nordlander group alumni), and
+Dr. Linan Zhou and Dr. Chao Zhang (Halas group alumni, as am I). Thank you.
+
+**Disclaimer.** This repository is an independent re-implementation written for my own
+fitting work. It is not the original code of the Nordlander or Halas groups, and it has
+not been reviewed or endorsed by anyone named above; any errors are mine alone. The
+software is provided "as is" under the MIT license, without warranty of any kind —
+please validate the results against your own data before relying on them.
 
 1. L. Zhou, D. F. Swearer, C. Zhang, H. Robatjazi, H. Zhao, L. Henderson, L. Dong,
    P. Christopher, E. A. Carter, P. Nordlander, N. J. Halas, "Quantifying hot carrier and
