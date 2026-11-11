@@ -381,9 +381,8 @@ Monte Carlo random walk to separate absorption from multiple scattering, and spl
 absorbed power into hot-carrier generation channels — were learned from the
 **Nordlander and Halas groups at Rice University**, and from the papers below.
 
-Besides my PhD advisor, Prof. Naomi J. Halas, and Prof. Peter Nordlander — who served on
-my thesis committee, was a corresponding author on my papers, and taught me a great deal
-as a mentor — I learned most of this as a graduate student from Dr. Minhan Lou, Dr. Ming Zhang, Dr. Jingyi Zhou,
+Besides my advisors, Prof. Naomi J. Halas and Prof. Peter Nordlander, I learned most of
+this as a graduate student from Dr. Minhan Lou, Dr. Ming Zhang, Dr. Jingyi Zhou,
 Dr. Yage Zhao and Anvy Kuriakose (Nordlander group alumni), and from my senior labmates
 Dr. Linan Zhou and Dr. Chao Zhang (Halas group alumni, as am I). Thank you.
 
